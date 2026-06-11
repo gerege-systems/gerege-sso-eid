@@ -10,7 +10,7 @@ export default async function AdminPage() {
   const clients = await listDANClients();
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
+    <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">DAN Clients</h1>
@@ -26,7 +26,7 @@ export default async function AdminPage() {
         </a>
       </div>
 
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/[0.06]">
@@ -49,7 +49,7 @@ export default async function AdminPage() {
                 <tr key={c.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                   <td className="px-5 py-3 font-mono text-xs text-primary">{c.id}</td>
                   <td className="px-5 py-3 text-white">{c.name}</td>
-                  <td className="px-5 py-3 text-slate-400 text-xs">
+                  <td className="px-5 py-3 text-slate-400 text-xs max-w-xs truncate" title={c.callback_urls?.join(", ")}>
                     {c.callback_urls?.join(", ")}
                   </td>
                   <td className="px-5 py-3">
@@ -63,7 +63,7 @@ export default async function AdminPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  <td className="px-5 py-3 text-right whitespace-nowrap">
                     {c.active && (
                       <div className="flex items-center justify-end gap-4">
                         <form
