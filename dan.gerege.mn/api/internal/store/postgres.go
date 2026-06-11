@@ -121,6 +121,29 @@ func (p *Postgres) CreateDANClient(ctx context.Context, name string, callbackURL
 	return c, clientSecret, hmacKey, nil
 }
 
+// RegenerateDANClientSecret issues a fresh secret for an existing client,
+// replaces the stored bcrypt hash, and returns the new plaintext secret once.
+// Returns ("", nil) if no client with the given id exists.
+func (p *Postgres) RegenerateDANClientSecret(ctx context.Context, clientID string) (string, error) {
+	clientSecret := base64.RawURLEncoding.EncodeToString(mustRandBytes(32))
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(clientSecret), 12)
+	if err != nil {
+		return "", fmt.Errorf("store.RegenerateDANClientSecret bcrypt: %w", err)
+	}
+
+	tag, err := p.pool.Exec(ctx,
+		`UPDATE dan_clients SET secret_hash = $1, updated_at = now() WHERE id = $2`,
+		string(hash), clientID)
+	if err != nil {
+		return "", fmt.Errorf("store.RegenerateDANClientSecret: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return "", nil
+	}
+	return clientSecret, nil
+}
+
 func (p *Postgres) DeactivateDANClient(ctx context.Context, clientID string) error {
 	_, err := p.pool.Exec(ctx,
 		`UPDATE dan_clients SET active = false, updated_at = now() WHERE id = $1`, clientID)

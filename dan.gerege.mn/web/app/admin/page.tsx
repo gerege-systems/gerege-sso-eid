@@ -1,4 +1,10 @@
-import { listDANClients, deactivateDANClient } from "@/lib/api";
+import { redirect } from "next/navigation";
+import {
+  listDANClients,
+  deactivateDANClient,
+  regenerateDANClientSecret,
+} from "@/lib/api";
+import ConfirmSubmitButton from "./clients/ConfirmSubmitButton";
 
 export default async function AdminPage() {
   const clients = await listDANClients();
@@ -59,21 +65,42 @@ export default async function AdminPage() {
                   </td>
                   <td className="px-5 py-3 text-right">
                     {c.active && (
-                      <form
-                        action={async () => {
-                          "use server";
-                          await deactivateDANClient(c.id);
-                          const { redirect } = await import("next/navigation");
-                          redirect("/admin");
-                        }}
-                      >
-                        <button
-                          type="submit"
-                          className="text-xs text-red-400 hover:text-red-300 font-medium"
+                      <div className="flex items-center justify-end gap-4">
+                        <form
+                          action={async () => {
+                            "use server";
+                            const result = await regenerateDANClientSecret(c.id);
+                            const params = new URLSearchParams({
+                              id: result.id,
+                              secret: result.secret,
+                              name: c.name,
+                              regenerated: "1",
+                            });
+                            redirect(`/admin/clients/new?${params.toString()}`);
+                          }}
                         >
-                          Идэвхгүйжүүлэх
-                        </button>
-                      </form>
+                          <ConfirmSubmitButton
+                            message={`"${c.name}" client-ийн secret-ийг шинэчлэх үү? Хуучин secret хүчингүй болж, тухайн апп шинэ secret-ээ тохируулах хүртэл DAN нэвтрэлт тасарна.`}
+                            className="text-xs text-amber-400 hover:text-amber-300 font-medium"
+                          >
+                            Secret шинэчлэх
+                          </ConfirmSubmitButton>
+                        </form>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await deactivateDANClient(c.id);
+                            redirect("/admin");
+                          }}
+                        >
+                          <ConfirmSubmitButton
+                            message={`"${c.name}" client-ийг идэвхгүйжүүлэх үү?`}
+                            className="text-xs text-red-400 hover:text-red-300 font-medium"
+                          >
+                            Идэвхгүйжүүлэх
+                          </ConfirmSubmitButton>
+                        </form>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -1,7 +1,40 @@
 import { redirect } from "next/navigation";
 import { createDANClient } from "@/lib/api";
+import SecretReveal from "../SecretReveal";
 
-export default function NewClientPage() {
+export default function NewClientPage({
+  searchParams,
+}: {
+  searchParams: {
+    id?: string;
+    secret?: string;
+    hmac_key?: string;
+    name?: string;
+    regenerated?: string;
+  };
+}) {
+  // After create (or secret regenerate) we redirect back here with the secret
+  // in the query string and show it once — it is never retrievable again.
+  if (searchParams.secret && searchParams.id) {
+    return (
+      <div className="max-w-lg mx-auto px-6 py-10">
+        <h1 className="text-2xl font-bold text-white mb-2">
+          {searchParams.regenerated ? "Шинэ Secret" : "Client үүслээ"}
+        </h1>
+        <p className="text-sm text-slate-400 mb-8">
+          Энэ мэдээллийг хаалттай газар хадгална уу. Дахин харах боломжгүй.
+        </p>
+        <SecretReveal
+          id={searchParams.id}
+          secret={searchParams.secret}
+          name={searchParams.name}
+          hmacKey={searchParams.hmac_key}
+          regenerated={Boolean(searchParams.regenerated)}
+        />
+      </div>
+    );
+  }
+
   async function handleCreate(formData: FormData) {
     "use server";
 
@@ -17,14 +50,14 @@ export default function NewClientPage() {
 
     const result = await createDANClient({ name, callback_urls: urls });
 
-    // Store result in URL params so we can show secret once
+    // Pass the one-time secret via query params to the reveal screen above
     const params = new URLSearchParams({
       id: result.id,
       secret: result.secret,
       hmac_key: result.hmac_key,
       name: result.name,
     });
-    redirect(`/admin/clients/new?created=${params.toString()}`);
+    redirect(`/admin/clients/new?${params.toString()}`);
   }
 
   return (

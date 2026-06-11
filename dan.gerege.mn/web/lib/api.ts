@@ -32,6 +32,12 @@ export async function createDANClient(data: {
   });
 }
 
+export async function regenerateDANClientSecret(id: string) {
+  return danFetch(`/api/clients/${id}/secret`, {
+    method: "POST",
+  });
+}
+
 export async function deactivateDANClient(id: string) {
   return danFetch(`/api/clients/${id}`, {
     method: "DELETE",

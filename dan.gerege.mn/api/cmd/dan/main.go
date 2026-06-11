@@ -74,6 +74,7 @@ func main() {
 	mux.HandleFunc("GET /try", h.Try)
 	mux.HandleFunc("GET /api/clients", h.ListClients)
 	mux.HandleFunc("POST /api/clients", h.CreateClient)
+	mux.HandleFunc("POST /api/clients/{id}/secret", h.RegenerateClientSecret)
 	mux.HandleFunc("DELETE /api/clients/{id}", h.DeactivateClient)
 	mux.HandleFunc("GET /health", h.Health)
 	mux.HandleFunc("GET /favicon.ico", h.Favicon)

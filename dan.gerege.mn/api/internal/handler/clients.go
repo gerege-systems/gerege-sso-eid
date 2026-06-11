@@ -84,6 +84,38 @@ func (h *Handler) CreateClient(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) RegenerateClientSecret(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		h.jsonError(w, 400, "client id required")
+		return
+	}
+
+	secret, err := h.cfg.DB.RegenerateDANClientSecret(r.Context(), id)
+	if err != nil {
+		slog.Error("clients: regenerate secret", "error", err)
+		h.jsonError(w, 500, "internal error")
+		return
+	}
+	if secret == "" {
+		h.jsonError(w, 404, "client not found")
+		return
+	}
+
+	slog.Info("client secret regenerated", "id", id)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"id":      id,
+		"secret":  secret,
+		"message": "Шинэ secret-ийг хадгалж авна уу. Дахин харагдахгүй. Хуучин secret хүчингүй боллоо.",
+	})
+}
+
 func (h *Handler) DeactivateClient(w http.ResponseWriter, r *http.Request) {
 	if !h.requireAdmin(w, r) {
 		return
