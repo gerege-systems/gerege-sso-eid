@@ -46,3 +46,36 @@ func (r *Redis) IncrRateLimit(ctx context.Context, clientID string) (int64, erro
 
 	return count, nil
 }
+
+const orgAuthTTL = time.Hour
+
+func orgAuthKey(clientID, regNo string) string {
+	return fmt.Sprintf("verify:authorg:%s:%s", clientID, regNo)
+}
+
+// MarkOrgAuthenticated records that the given API client has successfully
+// authenticated as a representative of the organization with regNo.
+// Used by chain authentication: a later request for a different org may
+// be accepted if this client previously authenticated to a majority-shareholder org.
+func (r *Redis) MarkOrgAuthenticated(ctx context.Context, clientID, regNo string) error {
+	if r == nil || clientID == "" || regNo == "" {
+		return nil
+	}
+	if err := r.client.Set(ctx, orgAuthKey(clientID, regNo), "1", orgAuthTTL).Err(); err != nil {
+		return fmt.Errorf("store.MarkOrgAuthenticated: %w", err)
+	}
+	return nil
+}
+
+// IsOrgAuthenticated reports whether the given client has a live authenticated
+// session for the org with regNo.
+func (r *Redis) IsOrgAuthenticated(ctx context.Context, clientID, regNo string) (bool, error) {
+	if r == nil || clientID == "" || regNo == "" {
+		return false, nil
+	}
+	n, err := r.client.Exists(ctx, orgAuthKey(clientID, regNo)).Result()
+	if err != nil {
+		return false, fmt.Errorf("store.IsOrgAuthenticated: %w", err)
+	}
+	return n > 0, nil
+}

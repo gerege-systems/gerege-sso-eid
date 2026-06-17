@@ -52,6 +52,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
       EID_BASE_URL: https://ca.gerege.mn
+      EID_RP_API_KEY: ${EID_RP_API_KEY}
       OCSP_URL: ""
       CA_ISSUING_URL: ""
       PORT: 8443

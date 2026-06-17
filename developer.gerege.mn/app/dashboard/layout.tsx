@@ -1,10 +1,13 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { hasRole } from "@/lib/rbac";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/auth/login");
+
+  const role = (session.user as any).role as string | undefined;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 flex gap-8">
@@ -14,6 +17,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <SideLink href="/dashboard/apps">Apps</SideLink>
           <SideLink href="/dashboard/tenants">Tenants</SideLink>
           <SideLink href="/dashboard/settings">Тохиргоо</SideLink>
+          {hasRole(role, "admin") && (
+            <div className="pt-4 border-t border-white/10 mt-4">
+              <div className="px-3 py-1 text-xs text-slate-500 uppercase tracking-wider">Админ</div>
+              <SideLink href="/dashboard/admin">Хэрэглэгчид</SideLink>
+              <SideLink href="/dashboard/admin/clients">SSO Clients</SideLink>
+              <SideLink href="/dashboard/admin/dan-clients">DAN Clients</SideLink>
+            </div>
+          )}
           <div className="pt-4 border-t border-white/10 mt-4">
             <SideLink href="/docs">Docs</SideLink>
             <SideLink href="/docs/api-reference">API Reference</SideLink>

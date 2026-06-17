@@ -51,6 +51,7 @@ func Audit(db *store.Postgres) func(http.Handler) http.Handler {
 				ResponseCode: sw.statusCode,
 				LatencyMs:    int(latency),
 				IPAddress:    ip,
+				AuthVia:      sw.Header().Get("X-Auth-Via"),
 			}
 
 			// Async insert — background context since request ctx may cancel

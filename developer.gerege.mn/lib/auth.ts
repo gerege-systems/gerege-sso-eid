@@ -26,7 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.ial = (profile as any).identity_assurance_level || "";
 
         // Upsert developer
-        await prisma.developer.upsert({
+        const dev = await prisma.developer.upsert({
           where: { sub: token.sub! },
           update: {
             name: token.name || "",
@@ -40,9 +40,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             givenName: token.givenName as string || "",
             familyName: token.familyName as string || "",
             certSerial: token.certSerial as string || "",
+            role: "user",
           },
         });
+        token.role = dev.role;
+        token.developerId = dev.id;
       }
+
+      // Refresh role on each request if not set
+      if (!token.role && token.sub) {
+        const dev = await prisma.developer.findUnique({ where: { sub: token.sub } });
+        if (dev) {
+          token.role = dev.role;
+          token.developerId = dev.id;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -52,7 +65,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).tenantId = token.tenantId;
         (session.user as any).tenantRole = token.tenantRole;
         (session.user as any).ial = token.ial;
-        (session.user as any).developerId = token.sub;
+        (session.user as any).developerId = token.developerId;
+        (session.user as any).role = token.role;
       }
       return session;
     },

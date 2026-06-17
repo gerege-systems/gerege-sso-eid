@@ -32,6 +32,7 @@ type AuditEntry struct {
 	ResponseCode int       `json:"response_code"`
 	LatencyMs    int       `json:"latency_ms"`
 	IPAddress    string    `json:"ip_address"`
+	AuthVia      string    `json:"auth_via,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -84,8 +85,10 @@ func (p *Postgres) Migrate(ctx context.Context) error {
 			response_code INTEGER NOT NULL,
 			latency_ms    INTEGER,
 			ip_address    TEXT,
+			auth_via      TEXT,
 			created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 		);
+		ALTER TABLE verify_audit_log ADD COLUMN IF NOT EXISTS auth_via TEXT;
 		CREATE INDEX IF NOT EXISTS idx_verify_audit_client ON verify_audit_log(client_id);
 		CREATE INDEX IF NOT EXISTS idx_verify_audit_created ON verify_audit_log(created_at);
 	`)
@@ -168,10 +171,14 @@ func (p *Postgres) DeactivateClient(ctx context.Context, clientID string) error 
 // --- Audit Log ---
 
 func (p *Postgres) InsertAudit(ctx context.Context, entry AuditEntry) error {
+	var via any
+	if entry.AuthVia != "" {
+		via = entry.AuthVia
+	}
 	_, err := p.pool.Exec(ctx,
-		`INSERT INTO verify_audit_log (client_id, endpoint, request_body, response_code, latency_ms, ip_address)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		entry.ClientID, entry.Endpoint, entry.RequestBody, entry.ResponseCode, entry.LatencyMs, entry.IPAddress)
+		`INSERT INTO verify_audit_log (client_id, endpoint, request_body, response_code, latency_ms, ip_address, auth_via)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		entry.ClientID, entry.Endpoint, entry.RequestBody, entry.ResponseCode, entry.LatencyMs, entry.IPAddress, via)
 	if err != nil {
 		return fmt.Errorf("store.InsertAudit: %w", err)
 	}
