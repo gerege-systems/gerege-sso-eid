@@ -73,6 +73,7 @@ export default async function AdminPage() {
                             const params = new URLSearchParams({
                               id: result.id,
                               secret: result.secret,
+                              hmac_key: result.hmac_key,
                               name: c.name,
                               regenerated: "1",
                             });

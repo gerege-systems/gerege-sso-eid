@@ -95,7 +95,7 @@ func (h *Handler) RegenerateClientSecret(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	secret, err := h.cfg.DB.RegenerateDANClientSecret(r.Context(), id)
+	secret, hmacKey, err := h.cfg.DB.RegenerateDANClientSecret(r.Context(), id)
 	if err != nil {
 		slog.Error("clients: regenerate secret", "error", err)
 		h.jsonError(w, 500, "internal error")
@@ -110,9 +110,10 @@ func (h *Handler) RegenerateClientSecret(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"id":      id,
-		"secret":  secret,
-		"message": "Шинэ secret-ийг хадгалж авна уу. Дахин харагдахгүй. Хуучин secret хүчингүй боллоо.",
+		"id":       id,
+		"secret":   secret,
+		"hmac_key": hmacKey,
+		"message":  "Шинэ secret-ийг хадгалж авна уу. Дахин харагдахгүй. Хуучин secret хүчингүй боллоо. HMAC key хэвээр.",
 	})
 }
 

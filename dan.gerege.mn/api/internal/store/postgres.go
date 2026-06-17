@@ -122,26 +122,30 @@ func (p *Postgres) CreateDANClient(ctx context.Context, name string, callbackURL
 }
 
 // RegenerateDANClientSecret issues a fresh secret for an existing client,
-// replaces the stored bcrypt hash, and returns the new plaintext secret once.
-// Returns ("", nil) if no client with the given id exists.
-func (p *Postgres) RegenerateDANClientSecret(ctx context.Context, clientID string) (string, error) {
+// replaces the stored bcrypt hash, and returns the new plaintext secret once
+// together with the client's existing (unchanged) hmac_key. The HMAC key is
+// not rotated — it is returned so the admin UI can re-display it.
+// Returns ("", "", nil) if no client with the given id exists.
+func (p *Postgres) RegenerateDANClientSecret(ctx context.Context, clientID string) (string, string, error) {
 	clientSecret := base64.RawURLEncoding.EncodeToString(mustRandBytes(32))
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(clientSecret), 12)
 	if err != nil {
-		return "", fmt.Errorf("store.RegenerateDANClientSecret bcrypt: %w", err)
+		return "", "", fmt.Errorf("store.RegenerateDANClientSecret bcrypt: %w", err)
 	}
 
-	tag, err := p.pool.Exec(ctx,
-		`UPDATE dan_clients SET secret_hash = $1, updated_at = now() WHERE id = $2`,
-		string(hash), clientID)
+	var hmacKey string
+	err = p.pool.QueryRow(ctx,
+		`UPDATE dan_clients SET secret_hash = $1, updated_at = now()
+		 WHERE id = $2 RETURNING hmac_key`,
+		string(hash), clientID).Scan(&hmacKey)
 	if err != nil {
-		return "", fmt.Errorf("store.RegenerateDANClientSecret: %w", err)
+		if err == pgx.ErrNoRows {
+			return "", "", nil
+		}
+		return "", "", fmt.Errorf("store.RegenerateDANClientSecret: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return "", nil
-	}
-	return clientSecret, nil
+	return clientSecret, hmacKey, nil
 }
 
 func (p *Postgres) DeactivateDANClient(ctx context.Context, clientID string) error {
