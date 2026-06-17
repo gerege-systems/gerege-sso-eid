@@ -29,10 +29,21 @@ export default async function AdminUsersPage() {
     const targetId = formData.get("developerId") as string;
     const newRole = formData.get("role") as string;
     const sess = await auth();
-    const currentRole = (sess?.user as any)?.role;
+    const currentRole = (sess?.user as any)?.role as Role | undefined;
+    const currentId = (sess?.user as any)?.developerId as string | undefined;
 
-    if (!hasRole(currentRole, "admin")) return;
-    if (newRole === "superadmin" && currentRole !== "superadmin") return;
+    if (!currentRole || !hasRole(currentRole, "admin")) return;
+
+    // newRole-г server талд enforce: зөвхөн дуудагчийн оноож болох эрхүүд (UI-д бус).
+    if (!ASSIGNABLE_ROLES[currentRole]?.includes(newRole as Role)) return;
+
+    // Target-г ачаалж, superadmin-г доод эрхтэн өөрчлөхөөс хамгаална.
+    const target = await prisma.developer.findUnique({ where: { id: targetId } });
+    if (!target) return;
+    if (target.role === "superadmin" && currentRole !== "superadmin") return;
+
+    // Өөрийгөө demote хийж түгжихээс сэргийлнэ.
+    if (target.id === currentId) return;
 
     await prisma.developer.update({
       where: { id: targetId },
