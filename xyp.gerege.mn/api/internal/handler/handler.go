@@ -14,6 +14,7 @@ type Config struct {
 	AdminKey string
 	Citizen  provider.CitizenProvider
 	Org      provider.OrgProvider
+	Finger   provider.FingerProvider
 }
 
 type Handler struct {

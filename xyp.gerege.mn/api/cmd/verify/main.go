@@ -27,6 +27,10 @@ func main() {
 	upstreamURL := envOrDefault("UPSTREAM_API_URL", "")
 	upstreamKey := envOrDefault("UPSTREAM_API_KEY", "")
 
+	// eSign fingerprint service lives on a separate host from the main upstream.
+	esignURL := envOrDefault("ESIGN_API_URL", "http://10.0.0.63:8003")
+	esignKey := envOrDefault("ESIGN_API_KEY", "")
+
 	if databaseURL == "" {
 		slog.Error("VERIFY_DATABASE_URL is required")
 		os.Exit(1)
@@ -72,6 +76,7 @@ func main() {
 	// Providers (both use the same upstream API at 10.0.0.187:8000)
 	citizenProv := provider.NewCitizenHTTP(upstreamURL, upstreamKey)
 	orgProv := provider.NewOrgHTTP(upstreamURL, upstreamKey)
+	fingerProv := provider.NewEsignHTTP(esignURL, esignKey)
 
 	// Handler
 	h := handler.New(handler.Config{
@@ -80,6 +85,7 @@ func main() {
 		AdminKey: adminKey,
 		Citizen:  citizenProv,
 		Org:      orgProv,
+		Finger:   fingerProv,
 	})
 
 	// Middleware
@@ -97,6 +103,7 @@ func main() {
 	mux.Handle("POST /v1/citizen/verify", apiKeyAuth(rateLimiter(auditor(http.HandlerFunc(h.CitizenVerify)))))
 	mux.Handle("POST /v1/org/lookup", apiKeyAuth(rateLimiter(auditor(http.HandlerFunc(h.OrgLookup)))))
 	mux.Handle("POST /v1/org/verify", apiKeyAuth(rateLimiter(auditor(http.HandlerFunc(h.OrgVerify)))))
+	mux.Handle("POST /v1/citizen/finger", apiKeyAuth(rateLimiter(auditor(http.HandlerFunc(h.CitizenFinger)))))
 
 	// Authenticate API: apikey auth → rate limit → audit → handler
 	mux.Handle("POST /v1/citizen/authenticate", apiKeyAuth(rateLimiter(auditor(http.HandlerFunc(h.AuthenticateCitizen)))))
