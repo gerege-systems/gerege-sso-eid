@@ -94,6 +94,8 @@ func scopeFromPath(path string) string {
 		return "citizen.verify"
 	case "/v1/org/authenticate":
 		return "org.verify"
+	case "/v1/citizen/finger":
+		return "citizen.finger"
 	default:
 		return ""
 	}
