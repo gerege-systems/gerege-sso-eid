@@ -193,6 +193,12 @@ func signHandler(cfg config) http.HandlerFunc {
 					StatusMessage string `json:"StatusMessage"`
 				} `json:"Status"`
 			} `json:"MSS_SignatureResp"`
+			// The MSSP signals errors as an ETSI/SOAP-style Fault carried inside
+			// an HTTP 200 body (e.g. a blocked PIN), not via a non-200 status.
+			Fault *struct {
+				Reason string `json:"Reason"`
+				Detail string `json:"Detail"`
+			} `json:"Fault"`
 		}
 
 		if err := json.Unmarshal(body, &msspResp); err != nil {
@@ -201,9 +207,17 @@ func signHandler(cfg config) http.HandlerFunc {
 			return
 		}
 
+		// Surface the real fault reason (blocked PIN, cancelled, not registered…)
+		// instead of masking every failure as a generic "signature missing".
+		if msspResp.Fault != nil && (msspResp.Fault.Reason != "" || msspResp.Fault.Detail != "") {
+			slog.Error("sign: MSSP fault", "reason", msspResp.Fault.Reason, "detail", msspResp.Fault.Detail)
+			jsonErr(w, 502, msspFaultMessage(msspResp.Fault.Reason, msspResp.Fault.Detail))
+			return
+		}
+
 		base64Sig := msspResp.MSSSignatureResp.MSSSignature.Base64Signature
 		if base64Sig == "" {
-			slog.Error("sign: empty signature in response")
+			slog.Error("sign: empty signature in response", "body", string(body))
 			jsonErr(w, 502, "G-Sign гарын үсэг авагдсангүй.")
 			return
 		}
@@ -385,6 +399,28 @@ func jsonErr(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// msspFaultMessage maps an ETSI MSS fault reason to a user-facing Mongolian
+// message, falling back to the MSSP-provided detail/reason text.
+func msspFaultMessage(reason, detail string) string {
+	switch reason {
+	case "PIN_NR_BLOCKED":
+		return "Таны G-Sign гарын үсгийн PIN блоклогдсон байна. Гар утасны операторт хандаж тайлуулна уу."
+	case "USER_CANCEL":
+		return "Хэрэглэгч гарын үсэг зурах хүсэлтийг цуцалсан."
+	case "EXPIRED_TRANSACTION":
+		return "Хүсэлтийн хугацаа дууссан. Дахин оролдоно уу."
+	case "WRONG_PARAM", "UNKNOWN_CLIENT", "NO_KEY_FOUND":
+		return "Энэ дугаар G-Sign-д бүртгэлгүй эсвэл мэдээлэл буруу байна."
+	}
+	if detail != "" {
+		return "G-Sign алдаа: " + detail
+	}
+	if reason != "" {
+		return "G-Sign алдаа: " + reason
+	}
+	return "G-Sign гарын үсэг авагдсангүй."
 }
 
 func logMiddleware(next http.Handler) http.Handler {
